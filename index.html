@@ -31,7 +31,6 @@ body {
 
 #indiaDate {
   font-size: clamp(22px, 2.5vw, 32px);
-  color: #ffffff;
   margin-bottom: 12px;
 }
 
@@ -63,9 +62,9 @@ body {
 }
 
 #status {
-  color: #9ca3af;
-  font-size: 14px;
-  margin-top: 15px;
+  color: #f0c674;
+  font-size: 16px;
+  margin-top: 20px;
 }
 
 .footer {
@@ -98,21 +97,76 @@ body {
 
 <script>
 
-const API_URL =
-'https://api.gurbaninow.com/v2/hukamnama/today';
+const API_BASE =
+'https://api.gurbaninow.com/v2/hukamnama';
 
-// Always use India timezone for the date
-function updateIndiaClock() {
+// Punjabi date names
+const weekdays = [
+  'ਐਤਵਾਰ',
+  'ਸੋਮਵਾਰ',
+  'ਮੰਗਲਵਾਰ',
+  'ਬੁੱਧਵਾਰ',
+  'ਵੀਰਵਾਰ',
+  'ਸ਼ੁੱਕਰਵਾਰ',
+  'ਸ਼ਨੀਵਾਰ'
+];
 
-  const now = new Date();
+const months = [
+  'ਜਨਵਰੀ',
+  'ਫਰਵਰੀ',
+  'ਮਾਰਚ',
+  'ਅਪ੍ਰੈਲ',
+  'ਮਈ',
+  'ਜੂਨ',
+  'ਜੁਲਾਈ',
+  'ਅਗਸਤ',
+  'ਸਤੰਬਰ',
+  'ਅਕਤੂਬਰ',
+  'ਨਵੰਬਰ',
+  'ਦਸੰਬਰ'
+];
 
-  const date = new Intl.DateTimeFormat('pa-IN', {
+// Get current date in India
+function getIndiaDate() {
+
+  const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Asia/Kolkata',
     weekday: 'long',
     day: 'numeric',
-    month: 'long',
+    month: 'numeric',
     year: 'numeric'
-  }).format(now);
+  }).formatToParts(new Date());
+
+  const get = name =>
+    parts.find(p => p.type === name).value;
+
+  const dayName = get('weekday');
+  const day = Number(get('day'));
+  const month = Number(get('month'));
+  const year = Number(get('year'));
+
+  const weekdayIndex = [
+    'Sunday', 'Monday', 'Tuesday',
+    'Wednesday', 'Thursday', 'Friday',
+    'Saturday'
+  ].indexOf(dayName);
+
+  return {
+    year,
+    month,
+    day,
+    weekdayIndex,
+    formatted:
+      weekdays[weekdayIndex] + ', ' +
+      day + ' ' + months[month - 1] +
+      ' ' + year
+  };
+}
+
+// Display Indian date and time
+function updateClock() {
+
+  const india = getIndiaDate();
 
   const time = new Intl.DateTimeFormat('en-IN', {
     timeZone: 'Asia/Kolkata',
@@ -120,16 +174,16 @@ function updateIndiaClock() {
     minute: '2-digit',
     second: '2-digit',
     hour12: true
-  }).format(now);
+  }).format(new Date());
 
   document.getElementById('indiaDate').textContent =
-    'ਭਾਰਤ ਵਿੱਚ ਅੱਜ ਦੀ ਤਾਰੀਖ: ' + date;
+    'ਭਾਰਤ ਵਿੱਚ ਅੱਜ ਦੀ ਤਾਰੀਖ: ' + india.formatted;
 
   document.getElementById('indiaTime').textContent =
     'ਭਾਰਤੀ ਸਮਾਂ: ' + time;
 }
 
-// Load daily Hukamnama
+// Load Hukamnama for exact Indian date
 async function loadHukamnama() {
 
   const text = document.getElementById('hukamnama');
@@ -137,17 +191,29 @@ async function loadHukamnama() {
   const sourceDate = document.getElementById('sourceDate');
   const status = document.getElementById('status');
 
-  updateIndiaClock();
+  const india = getIndiaDate();
+
+  const url =
+    API_BASE + '/' +
+    india.year + '/' +
+    india.month + '/' +
+    india.day +
+    '?_=' + Date.now();
+
+  updateClock();
+
+  status.textContent = 'ਹੁਕਮਨਾਮਾ ਚੈੱਕ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ...';
 
   try {
 
-    const response = await fetch(
-      API_URL + '?refresh=' + Date.now(),
-      { cache: 'no-store' }
-    );
+    const response = await fetch(url, {
+      cache: 'no-store'
+    });
 
     if (!response.ok) {
-      throw new Error('API unavailable');
+      throw new Error(
+        'Todays Hukamnama is not available yet'
+      );
     }
 
     const data = await response.json();
@@ -162,58 +228,73 @@ async function loadHukamnama() {
       .map(item => item.line.gurmukhi.unicode)
       .filter(Boolean);
 
-    if (!lines.length) {
+    if (lines.length === 0) {
       throw new Error('Gurmukhi text unavailable');
     }
 
+    // Display Gurbani
     text.textContent = lines.join('\n');
 
+    // Display Ang number
     ang.textContent =
       'ਅੰਗ ' + data.hukamnamainfo.pageno;
 
-    // Show actual publication date separately
+    // Confirm publication date
     const d = data.date && data.date.gregorian;
 
     if (d) {
-      const actualDate = new Date(
-        Date.UTC(d.year, d.month - 1, d.date)
-      );
 
-      const formatted = new Intl.DateTimeFormat('pa-IN', {
-        timeZone: 'Asia/Kolkata',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      }).format(actualDate);
+      const returnedDate =
+        d.year + '-' +
+        String(d.month).padStart(2, '0') + '-' +
+        String(d.date).padStart(2, '0');
+
+      const requestedDate =
+        india.year + '-' +
+        String(india.month).padStart(2, '0') + '-' +
+        String(india.day).padStart(2, '0');
+
+      if (returnedDate !== requestedDate) {
+        throw new Error(
+          'Returned Hukamnama date does not match India date'
+        );
+      }
 
       sourceDate.textContent =
-        'ਹੁਕਮਨਾਮੇ ਦੀ ਪ੍ਰਕਾਸ਼ਿਤ ਤਾਰੀਖ: ' + formatted;
+        'ਹੁਕਮਨਾਮੇ ਦੀ ਤਾਰੀਖ: ' + india.formatted;
+    } else {
+      sourceDate.textContent =
+        'ਹੁਕਮਨਾਮੇ ਦੀ ਤਾਰੀਖ: ' + india.formatted;
     }
 
-    status.textContent = 'ਹੁਕਮਨਾਮਾ ਅੱਪਡੇਟ ਹੋ ਗਿਆ';
+    status.textContent = '';
 
   } catch (error) {
 
-    status.textContent =
-      'ਹੁਕਮਨਾਮਾ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕਿਆ।';
-
     console.error(error);
+
+    text.textContent =
+      'ਅੱਜ ਦਾ ਹੁਕਮਨਾਮਾ ਹਾਲੇ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।';
+
+    ang.textContent = '';
+    sourceDate.textContent = '';
+
+    status.textContent =
+      'ਨਵਾਂ ਹੁਕਮਨਾਮਾ ਉਪਲਬਧ ਹੋਣ ਤੇ ਆਪਣੇ ਆਪ ਅੱਪਡੇਟ ਹੋਵੇਗਾ।';
   }
 }
 
-// Initial load
-updateIndiaClock();
+// Start page
+updateClock();
 loadHukamnama();
 
-// Update India date and time every second
-setInterval(updateIndiaClock, 1000);
+// Update clock every second
+setInterval(updateClock, 1000);
 
-// Check for new Hukamnama every 15 minutes
+// Check exact-date Hukamnama every 15 minutes
 setInterval(loadHukamnama, 15 * 60 * 1000);
 
 </script>
 
 </body>
 </html>
-
-
