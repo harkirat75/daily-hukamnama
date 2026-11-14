@@ -46,13 +46,22 @@ body {
   margin-bottom: 30px;
 }
 
+#writer {
+  color: #e5bd70;
+  font-size: 20px;
+  margin-bottom: 20px;
+}
+
 #hukamnama {
   font-size: clamp(25px, 3vw, 43px);
   line-height: 2;
   max-width: 1400px;
   margin: auto;
-  white-space: pre-line;
   font-weight: 500;
+}
+
+.verse {
+  margin-bottom: 22px;
 }
 
 #sourceDate {
@@ -62,9 +71,9 @@ body {
 }
 
 #status {
-  color: #f0c674;
-  font-size: 16px;
-  margin-top: 20px;
+  color: #e5bd70;
+  font-size: 14px;
+  margin-top: 15px;
 }
 
 .footer {
@@ -83,6 +92,7 @@ body {
 <div id="indiaTime"></div>
 
 <div id="ang"></div>
+<div id="writer"></div>
 
 <div id="hukamnama">
 ਹੁਕਮਨਾਮਾ ਸਾਹਿਬ ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ...
@@ -97,36 +107,34 @@ body {
 
 <script>
 
-const API_BASE =
-'https://api.gurbaninow.com/v2/hukamnama';
+const API_URL =
+'https://harjyo.com/api/hukamnama/today';
 
-// Punjabi date names
 const weekdays = [
-  'ਐਤਵਾਰ',
-  'ਸੋਮਵਾਰ',
-  'ਮੰਗਲਵਾਰ',
-  'ਬੁੱਧਵਾਰ',
-  'ਵੀਰਵਾਰ',
-  'ਸ਼ੁੱਕਰਵਾਰ',
-  'ਸ਼ਨੀਵਾਰ'
+'ਐਤਵਾਰ',
+'ਸੋਮਵਾਰ',
+'ਮੰਗਲਵਾਰ',
+'ਬੁੱਧਵਾਰ',
+'ਵੀਰਵਾਰ',
+'ਸ਼ੁੱਕਰਵਾਰ',
+'ਸ਼ਨੀਵਾਰ'
 ];
 
 const months = [
-  'ਜਨਵਰੀ',
-  'ਫਰਵਰੀ',
-  'ਮਾਰਚ',
-  'ਅਪ੍ਰੈਲ',
-  'ਮਈ',
-  'ਜੂਨ',
-  'ਜੁਲਾਈ',
-  'ਅਗਸਤ',
-  'ਸਤੰਬਰ',
-  'ਅਕਤੂਬਰ',
-  'ਨਵੰਬਰ',
-  'ਦਸੰਬਰ'
+'ਜਨਵਰੀ',
+'ਫਰਵਰੀ',
+'ਮਾਰਚ',
+'ਅਪ੍ਰੈਲ',
+'ਮਈ',
+'ਜੂਨ',
+'ਜੁਲਾਈ',
+'ਅਗਸਤ',
+'ਸਤੰਬਰ',
+'ਅਕਤੂਬਰ',
+'ਨਵੰਬਰ',
+'ਦਸੰਬਰ'
 ];
 
-// Get current date in India
 function getIndiaDate() {
 
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -137,25 +145,25 @@ function getIndiaDate() {
     year: 'numeric'
   }).formatToParts(new Date());
 
-  const get = name =>
-    parts.find(p => p.type === name).value;
+  const get = type =>
+    parts.find(p => p.type === type).value;
 
-  const dayName = get('weekday');
-  const day = Number(get('day'));
-  const month = Number(get('month'));
   const year = Number(get('year'));
+  const month = Number(get('month'));
+  const day = Number(get('day'));
 
   const weekdayIndex = [
-    'Sunday', 'Monday', 'Tuesday',
-    'Wednesday', 'Thursday', 'Friday',
-    'Saturday'
-  ].indexOf(dayName);
+    'Sunday','Monday','Tuesday',
+    'Wednesday','Thursday','Friday','Saturday'
+  ].indexOf(get('weekday'));
 
   return {
     year,
     month,
     day,
-    weekdayIndex,
+    iso: year + '-' +
+      String(month).padStart(2,'0') + '-' +
+      String(day).padStart(2,'0'),
     formatted:
       weekdays[weekdayIndex] + ', ' +
       day + ' ' + months[month - 1] +
@@ -163,7 +171,6 @@ function getIndiaDate() {
   };
 }
 
-// Display Indian date and time
 function updateClock() {
 
   const india = getIndiaDate();
@@ -183,89 +190,66 @@ function updateClock() {
     'ਭਾਰਤੀ ਸਮਾਂ: ' + time;
 }
 
-// Load Hukamnama for exact Indian date
 async function loadHukamnama() {
 
   const text = document.getElementById('hukamnama');
   const ang = document.getElementById('ang');
+  const writer = document.getElementById('writer');
   const sourceDate = document.getElementById('sourceDate');
   const status = document.getElementById('status');
 
   const india = getIndiaDate();
 
-  const url =
-    API_BASE + '/' +
-    india.year + '/' +
-    india.month + '/' +
-    india.day +
-    '?_=' + Date.now();
-
-  updateClock();
-
-  status.textContent = 'ਹੁਕਮਨਾਮਾ ਚੈੱਕ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ...';
-
   try {
 
-    const response = await fetch(url, {
-      cache: 'no-store'
-    });
+    const response = await fetch(
+      API_URL + '?_=' + Date.now(),
+      { cache: 'no-store' }
+    );
 
     if (!response.ok) {
-      throw new Error(
-        'Todays Hukamnama is not available yet'
-      );
+      throw new Error('Feed unavailable');
     }
 
     const data = await response.json();
 
-    if (!data.hukamnama ||
-        !Array.isArray(data.hukamnama) ||
-        data.hukamnama.length === 0) {
-      throw new Error('No Hukamnama available');
+    // Never show an older day's Gurbani as today's
+    if (data.iso_date !== india.iso) {
+      throw new Error(
+        'Waiting for today’s Hukamnama publication'
+      );
     }
 
-    const lines = data.hukamnama
-      .map(item => item.line.gurmukhi.unicode)
+    if (!Array.isArray(data.verses) ||
+        data.verses.length === 0) {
+      throw new Error('No Gurbani verses available');
+    }
+
+    const verses = data.verses
+      .map(v => v.gurmukhi)
       .filter(Boolean);
 
-    if (lines.length === 0) {
-      throw new Error('Gurmukhi text unavailable');
+    if (!verses.length) {
+      throw new Error('Gurmukhi unavailable');
     }
 
-    // Display Gurbani
-    text.textContent = lines.join('\n');
+    // Display each Gurbani verse separately
+    text.replaceChildren();
 
-    // Display Ang number
-    ang.textContent =
-      'ਅੰਗ ' + data.hukamnamainfo.pageno;
+    verses.forEach(line => {
+      const verse = document.createElement('div');
+      verse.className = 'verse';
+      verse.textContent = line;
+      text.appendChild(verse);
+    });
 
-    // Confirm publication date
-    const d = data.date && data.date.gregorian;
+    ang.textContent = 'ਅੰਗ ' + data.ang;
 
-    if (d) {
+    writer.textContent =
+      data.raag + ' · ' + data.writer;
 
-      const returnedDate =
-        d.year + '-' +
-        String(d.month).padStart(2, '0') + '-' +
-        String(d.date).padStart(2, '0');
-
-      const requestedDate =
-        india.year + '-' +
-        String(india.month).padStart(2, '0') + '-' +
-        String(india.day).padStart(2, '0');
-
-      if (returnedDate !== requestedDate) {
-        throw new Error(
-          'Returned Hukamnama date does not match India date'
-        );
-      }
-
-      sourceDate.textContent =
-        'ਹੁਕਮਨਾਮੇ ਦੀ ਤਾਰੀਖ: ' + india.formatted;
-    } else {
-      sourceDate.textContent =
-        'ਹੁਕਮਨਾਮੇ ਦੀ ਤਾਰੀਖ: ' + india.formatted;
-    }
+    sourceDate.textContent =
+      'ਹੁਕਮਨਾਮੇ ਦੀ ਤਾਰੀਖ: ' + india.formatted;
 
     status.textContent = '';
 
@@ -273,25 +257,19 @@ async function loadHukamnama() {
 
     console.error(error);
 
-    text.textContent =
-      'ਅੱਜ ਦਾ ਹੁਕਮਨਾਮਾ ਹਾਲੇ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।';
-
-    ang.textContent = '';
-    sourceDate.textContent = '';
-
     status.textContent =
-      'ਨਵਾਂ ਹੁਕਮਨਾਮਾ ਉਪਲਬਧ ਹੋਣ ਤੇ ਆਪਣੇ ਆਪ ਅੱਪਡੇਟ ਹੋਵੇਗਾ।';
+      'ਨਵੇਂ ਹੁਕਮਨਾਮੇ ਦੀ ਉਡੀਕ ਹੈ। ਪੁਰਾਣਾ ਹੁਕਮਨਾਮਾ ਗਲਤ ਤਾਰੀਖ ਨਾਲ ਨਹੀਂ ਦਿਖਾਇਆ ਜਾਵੇਗਾ।';
   }
 }
 
-// Start page
+// Start
 updateClock();
 loadHukamnama();
 
-// Update clock every second
+// Update India clock every second
 setInterval(updateClock, 1000);
 
-// Check exact-date Hukamnama every 15 minutes
+// Check for new Hukamnama every 15 minutes
 setInterval(loadHukamnama, 15 * 60 * 1000);
 
 </script>
