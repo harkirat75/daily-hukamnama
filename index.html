@@ -4,7 +4,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
 <title>Daily Hukamnama Sahib</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Gurmukhi:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -43,13 +42,13 @@ body {
 #ang {
   color: #e5bd70;
   font-size: 23px;
-  margin-bottom: 30px;
+  margin-bottom: 15px;
 }
 
 #writer {
   color: #e5bd70;
   font-size: 20px;
-  margin-bottom: 20px;
+  margin-bottom: 25px;
 }
 
 #hukamnama {
@@ -64,16 +63,10 @@ body {
   margin-bottom: 22px;
 }
 
-#sourceDate {
-  color: #9ca3af;
-  font-size: 16px;
-  margin-top: 25px;
-}
-
 #status {
   color: #e5bd70;
-  font-size: 14px;
-  margin-top: 15px;
+  margin-top: 20px;
+  font-size: 15px;
 }
 
 .footer {
@@ -98,7 +91,6 @@ body {
 ਹੁਕਮਨਾਮਾ ਸਾਹਿਬ ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ...
 </div>
 
-<div id="sourceDate"></div>
 <div id="status"></div>
 
 <div class="footer">
@@ -107,32 +99,15 @@ body {
 
 <script>
 
-const API_URL =
-'https://harjyo.com/api/hukamnama/today';
-
 const weekdays = [
-'ਐਤਵਾਰ',
-'ਸੋਮਵਾਰ',
-'ਮੰਗਲਵਾਰ',
-'ਬੁੱਧਵਾਰ',
-'ਵੀਰਵਾਰ',
-'ਸ਼ੁੱਕਰਵਾਰ',
-'ਸ਼ਨੀਵਾਰ'
+'ਐਤਵਾਰ','ਸੋਮਵਾਰ','ਮੰਗਲਵਾਰ',
+'ਬੁੱਧਵਾਰ','ਵੀਰਵਾਰ','ਸ਼ੁੱਕਰਵਾਰ','ਸ਼ਨੀਵਾਰ'
 ];
 
 const months = [
-'ਜਨਵਰੀ',
-'ਫਰਵਰੀ',
-'ਮਾਰਚ',
-'ਅਪ੍ਰੈਲ',
-'ਮਈ',
-'ਜੂਨ',
-'ਜੁਲਾਈ',
-'ਅਗਸਤ',
-'ਸਤੰਬਰ',
-'ਅਕਤੂਬਰ',
-'ਨਵੰਬਰ',
-'ਦਸੰਬਰ'
+'ਜਨਵਰੀ','ਫਰਵਰੀ','ਮਾਰਚ','ਅਪ੍ਰੈਲ',
+'ਮਈ','ਜੂਨ','ਜੁਲਾਈ','ਅਗਸਤ',
+'ਸਤੰਬਰ','ਅਕਤੂਬਰ','ਨਵੰਬਰ','ਦਸੰਬਰ'
 ];
 
 function getIndiaDate() {
@@ -152,22 +127,18 @@ function getIndiaDate() {
   const month = Number(get('month'));
   const day = Number(get('day'));
 
-  const weekdayIndex = [
+  const weekday = [
     'Sunday','Monday','Tuesday',
     'Wednesday','Thursday','Friday','Saturday'
   ].indexOf(get('weekday'));
 
   return {
-    year,
-    month,
-    day,
     iso: year + '-' +
       String(month).padStart(2,'0') + '-' +
       String(day).padStart(2,'0'),
-    formatted:
-      weekdays[weekdayIndex] + ', ' +
-      day + ' ' + months[month - 1] +
-      ' ' + year
+
+    formatted: weekdays[weekday] + ', ' +
+      day + ' ' + months[month - 1] + ' ' + year
   };
 }
 
@@ -195,7 +166,6 @@ async function loadHukamnama() {
   const text = document.getElementById('hukamnama');
   const ang = document.getElementById('ang');
   const writer = document.getElementById('writer');
-  const sourceDate = document.getElementById('sourceDate');
   const status = document.getElementById('status');
 
   const india = getIndiaDate();
@@ -203,40 +173,36 @@ async function loadHukamnama() {
   try {
 
     const response = await fetch(
-      API_URL + '?_=' + Date.now(),
+      './hukamnama.json?t=' + Date.now(),
       { cache: 'no-store' }
     );
 
     if (!response.ok) {
-      throw new Error('Feed unavailable');
+      throw new Error('Hukamnama file not found');
     }
 
     const data = await response.json();
 
-    // Never show an older day's Gurbani as today's
     if (data.iso_date !== india.iso) {
-      throw new Error(
-        'Waiting for today’s Hukamnama publication'
-      );
+      throw new Error('Waiting for today’s Hukamnama');
     }
 
     if (!Array.isArray(data.verses) ||
         data.verses.length === 0) {
-      throw new Error('No Gurbani verses available');
+      throw new Error('No verses found');
     }
 
-    const verses = data.verses
+    const lines = data.verses
       .map(v => v.gurmukhi)
       .filter(Boolean);
 
-    if (!verses.length) {
+    if (!lines.length) {
       throw new Error('Gurmukhi unavailable');
     }
 
-    // Display each Gurbani verse separately
     text.replaceChildren();
 
-    verses.forEach(line => {
+    lines.forEach(line => {
       const verse = document.createElement('div');
       verse.className = 'verse';
       verse.textContent = line;
@@ -248,9 +214,6 @@ async function loadHukamnama() {
     writer.textContent =
       data.raag + ' · ' + data.writer;
 
-    sourceDate.textContent =
-      'ਹੁਕਮਨਾਮੇ ਦੀ ਤਾਰੀਖ: ' + india.formatted;
-
     status.textContent = '';
 
   } catch (error) {
@@ -258,18 +221,16 @@ async function loadHukamnama() {
     console.error(error);
 
     status.textContent =
-      'ਨਵੇਂ ਹੁਕਮਨਾਮੇ ਦੀ ਉਡੀਕ ਹੈ। ਪੁਰਾਣਾ ਹੁਕਮਨਾਮਾ ਗਲਤ ਤਾਰੀਖ ਨਾਲ ਨਹੀਂ ਦਿਖਾਇਆ ਜਾਵੇਗਾ।';
+      error.message +
+      ' · ਹੁਕਮਨਾਮਾ ਦੁਬਾਰਾ ਚੈੱਕ ਕੀਤਾ ਜਾਵੇਗਾ।';
   }
 }
 
-// Start
 updateClock();
 loadHukamnama();
 
-// Update India clock every second
 setInterval(updateClock, 1000);
 
-// Check for new Hukamnama every 15 minutes
 setInterval(loadHukamnama, 15 * 60 * 1000);
 
 </script>
