@@ -10,15 +10,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Gurmukhi:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
   margin: 0;
   min-height: 100vh;
   background: #111827;
-  color: #ffffff;
+  color: white;
   font-family: 'Noto Sans Gurmukhi', sans-serif;
   text-align: center;
   padding: 35px 25px;
@@ -26,20 +24,26 @@ body {
 
 .heading {
   color: #e5bd70;
-  font-size: clamp(26px, 3vw, 42px);
+  font-size: clamp(28px, 3vw, 44px);
   font-weight: 700;
-  margin-bottom: 15px;
+  margin-bottom: 20px;
 }
 
-#date {
-  font-size: clamp(18px, 2vw, 25px);
+#indiaDate {
+  font-size: clamp(22px, 2.5vw, 32px);
   color: #ffffff;
   margin-bottom: 12px;
 }
 
+#indiaTime {
+  color: #e5bd70;
+  font-size: 18px;
+  margin-bottom: 25px;
+}
+
 #ang {
   color: #e5bd70;
-  font-size: 22px;
+  font-size: 23px;
   margin-bottom: 30px;
 }
 
@@ -52,18 +56,23 @@ body {
   font-weight: 500;
 }
 
+#sourceDate {
+  color: #9ca3af;
+  font-size: 16px;
+  margin-top: 25px;
+}
+
 #status {
   color: #9ca3af;
   font-size: 14px;
-  margin-top: 20px;
+  margin-top: 15px;
 }
 
 .footer {
   margin-top: 40px;
   color: #e5bd70;
-  font-size: 17px;
+  font-size: 18px;
 }
-
 </style>
 </head>
 
@@ -71,18 +80,20 @@ body {
 
 <div class="heading">ੴ ਹੁਕਮਨਾਮਾ ਸਾਹਿਬ ੴ</div>
 
-<div id="date">ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ...</div>
+<div id="indiaDate"></div>
+<div id="indiaTime"></div>
 
 <div id="ang"></div>
 
 <div id="hukamnama">
-  ਹੁਕਮਨਾਮਾ ਸਾਹਿਬ ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ...
+ਹੁਕਮਨਾਮਾ ਸਾਹਿਬ ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ...
 </div>
 
+<div id="sourceDate"></div>
 <div id="status"></div>
 
 <div class="footer">
-  ਸ੍ਰੀ ਦਰਬਾਰ ਸਾਹਿਬ, ਅੰਮ੍ਰਿਤਸਰ
+ਸ੍ਰੀ ਦਰਬਾਰ ਸਾਹਿਬ, ਅੰਮ੍ਰਿਤਸਰ
 </div>
 
 <script>
@@ -90,33 +101,50 @@ body {
 const API_URL =
 'https://api.gurbaninow.com/v2/hukamnama/today';
 
-function showIndiaDate() {
+// Always use India timezone for the date
+function updateIndiaClock() {
 
-  const indiaDate = new Intl.DateTimeFormat('pa-IN', {
+  const now = new Date();
+
+  const date = new Intl.DateTimeFormat('pa-IN', {
     timeZone: 'Asia/Kolkata',
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     year: 'numeric'
-  }).format(new Date());
+  }).format(now);
 
-  document.getElementById('date').textContent =
-    'ਅੱਜ ਦੀ ਤਾਰੀਖ: ' + indiaDate;
+  const time = new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  }).format(now);
+
+  document.getElementById('indiaDate').textContent =
+    'ਭਾਰਤ ਵਿੱਚ ਅੱਜ ਦੀ ਤਾਰੀਖ: ' + date;
+
+  document.getElementById('indiaTime').textContent =
+    'ਭਾਰਤੀ ਸਮਾਂ: ' + time;
 }
 
+// Load daily Hukamnama
 async function loadHukamnama() {
 
   const text = document.getElementById('hukamnama');
   const ang = document.getElementById('ang');
+  const sourceDate = document.getElementById('sourceDate');
   const status = document.getElementById('status');
 
-  showIndiaDate();
+  updateIndiaClock();
 
   try {
 
-    const response = await fetch(API_URL, {
-      cache: 'no-store'
-    });
+    const response = await fetch(
+      API_URL + '?refresh=' + Date.now(),
+      { cache: 'no-store' }
+    );
 
     if (!response.ok) {
       throw new Error('API unavailable');
@@ -127,74 +155,65 @@ async function loadHukamnama() {
     if (!data.hukamnama ||
         !Array.isArray(data.hukamnama) ||
         data.hukamnama.length === 0) {
-      throw new Error('No Hukamnama data');
+      throw new Error('No Hukamnama available');
     }
 
-    // Display Ang number
-    ang.textContent =
-      'ਅੰਗ ' + data.hukamnamainfo.pageno;
-
-    // Display only Gurmukhi Gurbani
     const lines = data.hukamnama
       .map(item => item.line.gurmukhi.unicode)
-      .filter(line => line);
+      .filter(Boolean);
 
-    if (lines.length === 0) {
+    if (!lines.length) {
       throw new Error('Gurmukhi text unavailable');
     }
 
     text.textContent = lines.join('\n');
 
-    // Display actual API Hukamnama date if available
-    const apiDate = data.date &&
-                    data.date.gregorian;
+    ang.textContent =
+      'ਅੰਗ ' + data.hukamnamainfo.pageno;
 
-    if (apiDate) {
+    // Show actual publication date separately
+    const d = data.date && data.date.gregorian;
+
+    if (d) {
       const actualDate = new Date(
-        Date.UTC(
-          apiDate.year,
-          apiDate.month - 1,
-          apiDate.date
-        )
+        Date.UTC(d.year, d.month - 1, d.date)
       );
 
-      const formattedApiDate =
-        new Intl.DateTimeFormat('pa-IN', {
-          timeZone: 'Asia/Kolkata',
-          weekday: 'long',
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric'
-        }).format(actualDate);
+      const formatted = new Intl.DateTimeFormat('pa-IN', {
+        timeZone: 'Asia/Kolkata',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      }).format(actualDate);
 
-      status.textContent =
-        'ਹੁਕਮਨਾਮੇ ਦੀ ਤਾਰੀਖ: ' + formattedApiDate;
-    } else {
-      status.textContent = '';
+      sourceDate.textContent =
+        'ਹੁਕਮਨਾਮੇ ਦੀ ਪ੍ਰਕਾਸ਼ਿਤ ਤਾਰੀਖ: ' + formatted;
     }
+
+    status.textContent = 'ਹੁਕਮਨਾਮਾ ਅੱਪਡੇਟ ਹੋ ਗਿਆ';
 
   } catch (error) {
 
-    text.textContent =
-      'ਹੁਕਮਨਾਮਾ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕਿਆ।';
-
     status.textContent =
-      'ਕਿਰਪਾ ਕਰਕੇ ਇੰਟਰਨੈੱਟ ਕਨੈਕਸ਼ਨ ਜਾਂ API ਚੈੱਕ ਕਰੋ।';
+      'ਹੁਕਮਨਾਮਾ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕਿਆ।';
 
     console.error(error);
   }
 }
 
-// Load immediately
+// Initial load
+updateIndiaClock();
 loadHukamnama();
 
-// Refresh Hukamnama every 15 minutes
-setInterval(loadHukamnama, 15 * 60 * 1000);
+// Update India date and time every second
+setInterval(updateIndiaClock, 1000);
 
-// Refresh India date every minute
-setInterval(showIndiaDate, 60 * 1000);
+// Check for new Hukamnama every 15 minutes
+setInterval(loadHukamnama, 15 * 60 * 1000);
 
 </script>
 
 </body>
 </html>
+
+
