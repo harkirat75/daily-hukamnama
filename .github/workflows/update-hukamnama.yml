@@ -1,0 +1,37 @@
+
+name: Update Daily Hukamnama
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download latest Hukamnama
+        run: |
+          curl -fSL \
+          "https://harjyo.com/api/hukamnama/today" \
+          -o hukamnama.json
+
+      - name: Save updated Hukamnama
+        run: |
+          git config user.name "Hukamnama Bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add hukamnama.json
+
+          if ! git diff --cached --quiet; then
+            git commit -m "Update daily Hukamnama"
+            git push
+          else
+            echo "No changes in Hukamnama"
+          fi
